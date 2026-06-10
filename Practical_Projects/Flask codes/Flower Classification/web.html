@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iris Flower Classifier</title>
+    <!-- Load Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Use the 'Inter' font family for a clean look */
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      /* Custom style for the loader spinner */
+      .loader {
+        border-top-color: #3498db;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+      <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">
+        Iris Flower Classifier
+      </h1>
+
+      <p class="text-center text-gray-600 mb-8">
+        Enter the flower's measurements (in cm) to predict its species.
+      </p>
+
+      <!-- The form to collect feature data -->
+      <form id="predict-form">
+        <!-- 
+                The Iris model requires 4 features, so we have 4 input boxes.
+                1. Sepal Length
+                2. Sepal Width
+                3. Petal Length
+                4. Petal Width
+            -->
+        <div class="grid grid-cols-2 gap-5 mb-6">
+          <div>
+            <label
+              for="sepal-length"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Sepal Length (cm)</label
+            >
+            <input
+              type="number"
+              step="0.1"
+              id="sepal-length"
+              value="5.1"
+              required
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+            />
+          </div>
+          <div>
+            <label
+              for="sepal-width"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Sepal Width (cm)</label
+            >
+            <input
+              type="number"
+              step="0.1"
+              id="sepal-width"
+              value="3.5"
+              required
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+            />
+          </div>
+          <div>
+            <label
+              for="petal-length"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Petal Length (cm)</label
+            >
+            <input
+              type="number"
+              step="0.1"
+              id="petal-length"
+              value="1.4"
+              required
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+            />
+          </div>
+          <div>
+            <label
+              for="petal-width"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Petal Width (cm)</label
+            >
+            <input
+              type="number"
+              step="0.1"
+              id="petal-width"
+              value="0.2"
+              required
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+            />
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-150 ease-in-out flex items-center justify-center"
+        >
+          <span id="btn-text">Predict Species</span>
+          <div
+            id="btn-loader"
+            class="loader w-5 h-5 rounded-full border-2 border-t-2 border-gray-200 ml-3 hidden"
+          ></div>
+        </button>
+      </form>
+
+      <!-- Area to display results from the API -->
+      <div
+        id="results-div"
+        class="mt-8 p-5 bg-gray-50 rounded-lg border border-gray-200 hidden"
+      >
+        <h3 class="text-xl font-semibold mb-3 text-gray-800">
+          Prediction Results
+        </h3>
+
+        <!-- This will show the main prediction, e.g., "Setosa" -->
+        <p
+          id="prediction-text"
+          class="text-2xl font-bold text-blue-600 mb-3"
+        ></p>
+
+        <!-- This will show the list of probabilities -->
+        <div
+          id="probabilities-text"
+          class="text-sm text-gray-600 space-y-1"
+        ></div>
+      </div>
+
+      <!-- Area to display any errors -->
+      <div
+        id="error-div"
+        class="mt-8 p-4 bg-red-100 text-red-700 rounded-lg border border-red-200 hidden"
+      >
+        <p id="error-text" class="font-medium"></p>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("predict-form");
+        const submitBtn = document.getElementById("submit-btn");
+        const btnText = document.getElementById("btn-text");
+        const btnLoader = document.getElementById("btn-loader");
+
+        const resultsDiv = document.getElementById("results-div");
+        const predictionText = document.getElementById("prediction-text");
+        const probabilitiesText = document.getElementById("probabilities-text");
+
+        const errorDiv = document.getElementById("error-div");
+        const errorText = document.getElementById("error-text");
+
+        // Get all four input elements
+        const inputs = [
+          document.getElementById("sepal-length"),
+          document.getElementById("sepal-width"),
+          document.getElementById("petal-length"),
+          document.getElementById("petal-width"),
+        ];
+
+        // --- Map prediction index to a human-readable name ---
+        // 0 = Setosa, 1 = Versicolor, 2 = Virginica
+        const classNames = ["Setosa", "Versicolor", "Virginica"];
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault(); // Stop the form from submitting normally
+
+          // --- 1. Set Loading State ---
+          submitBtn.disabled = true;
+          btnText.textContent = "Analyzing...";
+          btnLoader.classList.remove("hidden");
+          resultsDiv.classList.add("hidden");
+          errorDiv.classList.add("hidden");
+
+          try {
+            // validate values
+            const features = inputs.map((input) => parseFloat(input.value));
+
+            if (features.some(isNaN)) {
+              throw new Error("Please enter valid numbers in all fields.");
+            }
+
+            const payload = {
+              features: features,
+            };
+
+            // Request to Flask API
+            const response = await fetch("http://localhost:8080/predict", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              throw new Error(
+                `Server error: ${response.status} ${response.statusText}`
+              );
+            }
+
+            const data = await response.json();
+
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            // --- 4. Display Success Results ---
+            const predictedClass = classNames[data.prediction] || "Unknown";
+            predictionText.textContent = `Predicted Species: ${predictedClass}`;
+
+            // Format probabilities
+            probabilitiesText.innerHTML = classNames
+              .map((name, index) => {
+                const probability = (data.probability[index] * 100).toFixed(2);
+                return `
+                            <div>
+                                <strong>${name}:</strong> 
+                                <span class="font-medium">${probability}%</span>
+                            </div>
+                        `;
+              })
+              .join("");
+
+            resultsDiv.classList.remove("hidden");
+          } catch (error) {
+            // --- 5. Display Error ---
+            errorText.textContent = `Error: ${error.message}`;
+            errorDiv.classList.remove("hidden");
+          } finally {
+            // --- 6. Reset Button ---
+            submitBtn.disabled = false;
+            btnText.textContent = "Predict Species";
+            btnLoader.classList.add("hidden");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

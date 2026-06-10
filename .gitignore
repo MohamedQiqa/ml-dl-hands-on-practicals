@@ -1,0 +1,70 @@
+# Data files
+*.json
+*.csv
+*.tsv
+*.parquet
+*.xlsx
+*.xls
+
+# Model files
+*.gguf
+*.h5
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.pb
+*.tflite
+*.safetensors
+*.bin
+
+# Images/media (data)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.mp4
+*.avi
+
+# Executables
+*.exe
+*.dll
+*.so
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Virtual environments
+albdaya_env/
+fine_env/
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+package-lock.json
+
+# Local DB
+al_bdaya_local_db/
+
+# Build outputs
+build/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Gemini
+.gemini/

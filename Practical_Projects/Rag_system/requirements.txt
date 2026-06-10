@@ -1,0 +1,9 @@
+flask
+langgraph
+langchain
+langchain-community
+langchain-chroma
+langchain-huggingface
+llama-cpp-python
+sentence-transformers
+python-dotenv

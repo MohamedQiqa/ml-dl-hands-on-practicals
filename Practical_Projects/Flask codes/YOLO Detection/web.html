@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What YOLO Sees - AI Object Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .loader {
+        border-top-color: #3498db;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .detection-card {
+        transition: transform 0.2s;
+      }
+      .detection-card:hover {
+        transform: scale(1.02);
+      }
+      .checkered-bg {
+        background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%), linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #e0e0e0 75%), linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 min-h-screen py-8">
+    <div class="container mx-auto px-4 max-w-6xl">
+      <div class="bg-white p-8 rounded-2xl shadow-xl mb-8">
+        <div class="text-center mb-6">
+          <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2">What YOLO Sees</h1>
+          <p class="text-lg text-gray-500 italic">AI-Powered Object Detection & Segmentation</p>
+        </div>
+        <p class="text-center text-gray-600 mb-8">Upload any image and watch YOLO identify objects with pixel-perfect precision</p>
+
+        <!-- Upload Section -->
+        <div class="mb-6">
+          <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-2"> Select an image </label>
+          <div class="flex items-center justify-center w-full">
+            <label
+              for="image-upload"
+              class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition"
+            >
+              <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                <svg class="w-12 h-12 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  ></path>
+                </svg>
+                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                <p class="text-xs text-gray-500">PNG, JPG or JPEG</p>
+              </div>
+              <input id="image-upload" type="file" class="hidden" accept="image/*" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div id="preview-section" class="mb-6 hidden">
+          <h3 class="text-lg font-semibold mb-3 text-gray-800">Image Preview</h3>
+          <img id="image-preview" class="w-full max-h-96 object-contain rounded-lg border border-gray-300" alt="Preview" />
+        </div>
+
+        <!-- Detection Mode Selection -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-3"> Detection Mode </label>
+          <div class="flex gap-4">
+            <label class="flex items-center cursor-pointer">
+              <input type="radio" name="detection-mode" value="bbox" checked class="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+              <span class="ml-2 text-sm text-gray-700"> <strong>Bounding Box</strong> - Rectangle around objects </span>
+            </label>
+            <label class="flex items-center cursor-pointer">
+              <input type="radio" name="detection-mode" value="segment" class="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+              <span class="ml-2 text-sm text-gray-700"> <strong>Segmentation</strong> - Exact pixel-wise extraction </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Detect Button -->
+        <button
+          id="detect-btn"
+          disabled
+          class="w-full bg-blue-600 text-white p-4 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-150 ease-in-out flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          <span id="btn-text">Detect Objects</span>
+          <div id="btn-loader" class="loader w-5 h-5 rounded-full border-2 border-t-2 border-gray-200 ml-3 hidden"></div>
+        </button>
+      </div>
+
+      <!-- Results Section -->
+      <div id="results-section" class="hidden">
+        <!-- Annotated Image -->
+        <div class="bg-white p-8 rounded-2xl shadow-xl mb-8">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4">Detection Results</h2>
+          <div class="mb-4">
+            <p class="text-lg text-gray-700">
+              Total Detections:
+              <span id="total-detections" class="font-bold text-blue-600"></span>
+            </p>
+          </div>
+          <img id="annotated-image" class="w-full rounded-lg border border-gray-300" alt="Annotated" />
+        </div>
+
+        <!-- Individual Detections -->
+        <div class="bg-white p-8 rounded-2xl shadow-xl">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">Detected Objects</h2>
+          <div id="detections-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+      </div>
+
+      <!-- Error Section -->
+      <div id="error-section" class="bg-red-100 p-6 rounded-lg border border-red-200 hidden">
+        <p id="error-text" class="text-red-700 font-medium"></p>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const imageUpload = document.getElementById("image-upload");
+        const previewSection = document.getElementById("preview-section");
+        const imagePreview = document.getElementById("image-preview");
+        const detectBtn = document.getElementById("detect-btn");
+        const btnText = document.getElementById("btn-text");
+        const btnLoader = document.getElementById("btn-loader");
+        const resultsSection = document.getElementById("results-section");
+        const errorSection = document.getElementById("error-section");
+        const errorText = document.getElementById("error-text");
+        const annotatedImage = document.getElementById("annotated-image");
+        const totalDetections = document.getElementById("total-detections");
+        const detectionsGrid = document.getElementById("detections-grid");
+
+        let selectedFile = null;
+
+        // Handle image selection
+        imageUpload.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              imagePreview.src = event.target.result;
+              previewSection.classList.remove("hidden");
+              detectBtn.disabled = false;
+              resultsSection.classList.add("hidden");
+              errorSection.classList.add("hidden");
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+
+        // Handle detection
+        detectBtn.addEventListener("click", async () => {
+          if (!selectedFile) return;
+
+          // Set loading state
+          detectBtn.disabled = true;
+          btnText.textContent = "Detecting...";
+          btnLoader.classList.remove("hidden");
+          resultsSection.classList.add("hidden");
+          errorSection.classList.add("hidden");
+
+          try {
+            // Get selected detection mode
+            const mode = document.querySelector('input[name="detection-mode"]:checked').value;
+
+            const formData = new FormData();
+            formData.append("image", selectedFile);
+            formData.append("mode", mode);
+
+            const response = await fetch("http://localhost:8081/detect", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            // Display results
+            totalDetections.textContent = data.total_detections;
+            annotatedImage.src = data.annotated_image;
+
+            // Clear previous detections
+            detectionsGrid.innerHTML = "";
+
+            // Display each detection
+            data.detections.forEach((detection, index) => {
+              const card = document.createElement("div");
+              card.className = "detection-card bg-gray-50 p-4 rounded-lg border border-gray-200";
+
+              // Use checkered background for segmented images (PNG with transparency)
+              const bgClass = mode === "segment" ? "checkered-bg" : "bg-white";
+
+              card.innerHTML = `
+                                <div class="mb-3">
+                                    <img src="${detection.cropped_image}"
+                                         class="w-full h-48 object-contain rounded border border-gray-300 ${bgClass}"
+                                         alt="${detection.class_name}">
+                                </div>
+                                <div class="space-y-2">
+                                    <h3 class="text-lg font-bold text-gray-800 capitalize">
+                                        ${detection.class_name}
+                                    </h3>
+                                    <p class="text-sm text-gray-600">
+                                        <strong>Confidence:</strong>
+                                        <span class="text-blue-600 font-semibold">${detection.confidence}%</span>
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        BBox: [${detection.bbox.x1}, ${detection.bbox.y1}, ${detection.bbox.x2}, ${detection.bbox.y2}]
+                                    </p>
+                                </div>
+                            `;
+              detectionsGrid.appendChild(card);
+            });
+
+            resultsSection.classList.remove("hidden");
+
+            // Scroll to results
+            resultsSection.scrollIntoView({ behavior: "smooth" });
+          } catch (error) {
+            errorText.textContent = `Error: ${error.message}`;
+            errorSection.classList.remove("hidden");
+          } finally {
+            detectBtn.disabled = false;
+            btnText.textContent = "Detect Objects";
+            btnLoader.classList.add("hidden");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

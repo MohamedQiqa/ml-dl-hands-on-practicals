@@ -1,0 +1,5 @@
+*.gguf
+*.json
+al_bdaya_local_db/
+venv/
+__pycache__/
